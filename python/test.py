@@ -4,6 +4,7 @@ from scipy.sparse import coo_matrix
 from ctypes import c_void_p, byref, POINTER, c_double, c_int64, \
 c_char, c_char_p
 from operator import add as op_add
+from traceback import format_exc
 
 c_int64_p = POINTER(c_int64)
 c_double_p = POINTER(c_double)
@@ -114,6 +115,7 @@ def high_level():
     # varconeindices = [ varconeindices1 ]
     varconelengths = [ 3 ]
     # ---------------------------------------------------
+
     constrcones = MPBCones(constrconetypes, constrconelengths, constrconeindices)
     varcones = MPBCones(varconetypes, varconelengths, varconeindices)
     A = coo_matrix((V, (I, J)), shape=(nconstr, nvar))
@@ -129,6 +131,66 @@ def high_level():
     assert abs(sol[1]-0.0) < 1e-3
     assert abs(sol[2]-2.0) < 1e-3
 
+
+def invalid_cone():
+    # ----------------- problem data --------------------
+    nvar = 3
+    nconstr = 2
+    nnz = 5
+
+    c = np.array([-3, -2, -4])
+    b = np.array([3, 2])
+
+
+    I = [0,0,1,0,1]
+    J = [0,1,1,2,2]
+    V = [1.0,1.0,1.0,1.0,1.0]
+
+
+    numconstrcones = 1;
+    constrconetypes = [ MPBZEROCONE ]
+    constrconeindices = [ 0, 1 ]
+    # constrconeindices =  [ constrconeindices1 ]
+    constrconelengths = [ 2 ]
+
+    numvarcones = 1
+    varconetypes = [ MPBSDPCONE ]
+    varconeindices = [ 0, 1, 2 ]
+    # varconeindices = [ varconeindices1 ]
+    varconelengths = [ 3 ]
+    # ---------------------------------------------------
+
+    constrcones = MPBCones(constrconetypes, constrconelengths, constrconeindices)
+    varcones = MPBCones(varconetypes, varconelengths, varconeindices)
+    A = coo_matrix((V, (I, J)), shape=(nconstr, nvar))
+
+
+    print str("Try calling model constructor with "
+        "Cbc solver and SDP cone (should fail):")
+    
+    # Cbc solver should not accept exponential primal cone
+    constructor_fails = True
+    try:
+        problem = MPBModel("Cbc", "CbcSolver()", c, A, b,
+        constrcones, varcones)
+        constructor_fails = False
+        err_msg = None
+
+    except:
+        err_msg = format_exc()
+        pass
+
+
+    if err_msg:
+        print "Constructor failure stack trace:\n", err_msg
+    else:
+        print "Method constructor did not fail, something is wrong"
+
+    assert constructor_fails
+
+
+
 if __name__ == "__main__":
     low_level()
     high_level()
+    # invalid_cone()

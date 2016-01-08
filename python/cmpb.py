@@ -42,6 +42,12 @@ MPBEXPDUAL = 8
 
 STATUS_BUFFER_LENGTH = 100
 
+CONECODES = {0: "Free Cone", 1: "Zero Cone", 2: "Nonnegative Cone",
+    3: "Nonpositive Cone", 4: "SOC", 5: "SOC Rotated", 6: "SDP Cone",
+    7: "Exponential Primal Cone", 8: "Exponential Dual Cone"}
+
+
+
 # ----------------- #
 # find and load lib #
 # ----------------- #
@@ -80,6 +86,7 @@ lib.mpb_free_solver.argtypes = [c_void_p]
 lib.mpb_new_model.argtypes = [c_void_p, POINTER(c_void_p)]
 lib.mpb_free_model.argtypes = [c_void_p]
 lib.mpb_atexit.argtypes = [c_int]
+lib.mpb_supportscone.argtypes = [c_void_p, c_int64]
 lib.mpb_loadproblem.argtypes = [c_void_p, c_int64, c_int64, c_double_p,
     c_int64_p, c_int64_p, c_double_p, c_int64, c_double_p,
     c_int64, c_int64_p, c_int64_p, c_int64_p,
@@ -88,6 +95,7 @@ lib.mpb_getsolution.argtypes = [c_void_p, c_double_p]
 lib.mpb_getdual.argtypes = [c_void_p, c_double_p]
 lib.mpb_status.argtypes = [c_void_p, c_char_p, c_int64]
 lib.mpb_checkpackage.argtypes = [c_char_p]
+
 
 # define return types
 lib.mpb_initialize.restype = c_int
@@ -102,6 +110,7 @@ lib.mpb_free_solver.restype = c_int
 lib.mpb_new_model.restype = c_int
 lib.mpb_free_model.restype = c_int
 lib.mpb_atexit.restype = None
+lib.mpb_supportscone.restype = c_int
 lib.mpb_loadproblem.restype = c_int
 lib.mpb_getsolution.restype = c_int
 lib.mpb_getdual.restype = c_int
@@ -121,7 +130,7 @@ solver_file.close()
 # check available solvers
 # TODO: fix stub code in C, currently returns 0
 for i, sol in MPB_solvers.iteritems():
-    sol["exists"] = lib.mpb_check_package(sol["packagename"])
+    sol["exists"] = lib.mpb_checkpackage(sol["packagename"])
 
 
 
@@ -224,6 +233,23 @@ class MPBModel(object):
 
         # intialize MathProgBase solver
         self.solver = MPBSolver(packagename, solvername)
+
+        # check solver supports requested cones
+        req_cones = set(constrcones.types)
+        for cone in varcones.types: req_cones.add(cone)
+        supported = True
+        errmsg = ""
+
+        for cone in req_cones:
+            if not lib.mpb_supportscone(self.solver.ptr, cone):
+                supported = False
+                errmsg += str("solver {} does not support "
+                    "requested cone type {} with "
+                    "MathProgBase code {}\n".format(
+                        solvername, CONECODES[cone], cone))
+        if not supported:
+            ValueError(errmsg)
+
 
         # initialize MathProgBase model
         self.ptr = c_void_p()

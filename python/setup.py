@@ -27,12 +27,8 @@ class CMPB_Build(build):
 
     self.execute(compile, [], message)
 
-    # set target files to Make output
-    # target_files = CPU_LIBS
-
     # copy Make output to library build folder
     self.mkpath(self.build_lib)
-    # for target in target_files:
     self.copy_file(path.join(BASEPATH,"libcmpb" + EXT), self.build_lib)
 
 
